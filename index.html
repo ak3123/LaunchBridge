@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- 모바일 앱처럼 보이게 하는 필수 메타 태그 (확대 방지, 전체화면) -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>LaunchBridge Prototype</title>
+    
+    <!-- 폰트 및 아이콘 로드 -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+        /* === 전역 설정 및 다크모드 테마 === */
+        :root {
+            --bg-color: #09090b;
+            --surface-color: #18181b;
+            --card-bg: #12121a;
+            --primary: #3b82f6;
+            --primary-hover: #2563eb;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --border: #27272a;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
+
+        body {
+            background-color: #000; /* 데스크톱에서 볼 때 배경 */
+            color: var(--text-main);
+            display: flex;
+            justify-content: center;
+            min-height: 100vh;
+        }
+
+        /* === 모바일 화면 컨테이너 === */
+        #app-container {
+            width: 100%;
+            max-width: 430px; /* 아이폰 Pro Max 너비 기준 */
+            background-color: var(--bg-color);
+            min-height: 100vh;
+            position: relative;
+            overflow-x: hidden;
+            box-shadow: 0 0 20px rgba(255,255,255,0.05);
+        }
+
+        /* 스크롤바 숨기기 */
+        ::-webkit-scrollbar { display: none; }
+
+        /* === 화면 전환 로직 === */
+        .screen {
+            display: none;
+            width: 100%;
+            min-height: 100vh;
+            padding-bottom: 90px; /* 하단 네비게이션 공간 */
+            animation: fadeIn 0.3s ease;
+        }
+        .screen.active { display: block; }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* === 공통 UI 요소 === */
+        h1, h2, h3 { font-weight: 700; }
+        p { color: var(--text-muted); font-size: 0.9rem; line-height: 1.5; }
+        
+        .btn-primary {
+            width: 100%; padding: 16px; border-radius: 12px;
+            background-color: var(--primary); color: white;
+            border: none; font-size: 1rem; font-weight: 600;
+            cursor: pointer; transition: background 0.2s;
+            display: flex; justify-content: center; align-items: center; gap: 8px;
+        }
+        .btn-primary:active { background-color: var(--primary-hover); transform: scale(0.98); }
+
+        /* === 1. 역할 선택 화면 (Role Selection) === */
+        #screen-role { padding: 40px 24px; text-align: center; }
+        .logo-box {
+            width: 64px; height: 64px; background-color: rgba(59, 130, 246, 0.1);
+            border-radius: 16px; display: flex; align-items: center; justify-content: center;
+            margin: 0 auto 24px; color: var(--primary);
+        }
+        .role-card {
+            background-color: var(--card-bg); border: 2px solid var(--border);
+            border-radius: 16px; padding: 20px; text-align: left; margin-top: 16px;
+            cursor: pointer; transition: all 0.2s;
+        }
+        .role-card.selected { border-color: var(--primary); background-color: rgba(59, 130, 246, 0.05); }
+        .role-card ul { margin-top: 12px; list-style: none; color: var(--text-muted); font-size: 0.85rem;}
+        .role-card ul li { margin-bottom: 6px; display: flex; align-items: center; gap: 8px; }
+        .role-card ul li i { color: var(--success); width: 14px; }
+        
+        /* === 2. 홈 화면 (Founder Home) === */
+        #screen-home { padding: 24px; }
+        .top-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+        .stats-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 24px; }
+        .stat-box {
+            background-color: var(--card-bg); border: 1px solid var(--border);
+            border-radius: 12px; padding: 16px 8px; text-align: center;
+        }
+        .stat-box h3 { font-size: 1.5rem; color: var(--primary); margin-bottom: 4px; }
+        .stat-box p { font-size: 0.75rem; }
+        
+        .action-card {
+            background: linear-gradient(135deg, var(--primary), #6366f1);
+            border-radius: 16px; padding: 24px; cursor: pointer; margin-bottom: 32px;
+            display: flex; justify-content: space-between; align-items: center;
+            box-shadow: 0 10px 25px rgba(59,130,246,0.3);
+        }
+        .action-card h3 { color: white; margin-bottom: 4px; display: flex; align-items: center; gap: 8px;}
+        .action-card p { color: rgba(255,255,255,0.8); font-size: 0.85rem; }
+
+        .investor-card {
+            background-color: var(--card-bg); border: 1px solid var(--border);
+            border-radius: 16px; padding: 20px; margin-bottom: 16px;
+        }
+        .investor-header { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+        .avatar { width: 40px; height: 40px; background-color: var(--surface-color); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: bold; }
+        .tags { display: flex; gap: 8px; margin: 12px 0; flex-wrap: wrap; }
+        .tag { background-color: rgba(59, 130, 246, 0.1); color: var(--primary); padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; }
+
+        /* === 3. 아이디어 검증 폼 (Validate Idea) === */
+        #screen-validate { background-color: var(--bg-color); padding: 24px; z-index: 100; min-height: 100vh;}
+        .modal-header { display: flex; align-items: center; margin-bottom: 24px; gap: 16px; }
+        .modal-header h2 { flex-grow: 1; text-align: center; }
+        .info-box { background-color: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.2); padding: 16px; border-radius: 12px; margin-bottom: 24px; font-size: 0.85rem; color: #60a5fa; display: flex; gap: 12px;}
+        .form-group { margin-bottom: 20px; }
+        .form-group label { display: block; margin-bottom: 8px; font-weight: 600; font-size: 0.9rem; }
+        .form-control { width: 100%; background-color: var(--surface-color); border: 1px solid var(--border); color: white; padding: 16px; border-radius: 12px; font-size: 0.95rem; outline: none; }
+        .form-control:focus { border-color: var(--primary); }
+        textarea.form-control { height: 100px; resize: none; }
+
+        /* 로딩 화면 (AI 분석 시뮬레이션) */
+        #loading-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(9, 9, 11, 0.9); z-index: 999;
+            display: none; flex-direction: column; justify-content: center; align-items: center;
+        }
+        .spinner { width: 50px; height: 50px; border: 4px solid var(--surface-color); border-top-color: var(--primary); border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 20px; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* === 4. AI 분석 결과 (Analysis Result) === */
+        #screen-analysis { padding: 24px; }
+        .score-card { background-color: var(--card-bg); border: 1px solid var(--border); border-radius: 16px; padding: 24px; display: flex; align-items: center; gap: 24px; margin-bottom: 24px; }
+        .score-circle {
+            width: 80px; height: 80px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+            background: conic-gradient(var(--warning) 78%, var(--surface-color) 0);
+            position: relative;
+        }
+        .score-circle::after { content: ""; width: 70px; height: 70px; background-color: var(--card-bg); border-radius: 50%; position: absolute; }
+        .score-text { position: absolute; z-index: 10; font-size: 1.5rem; font-weight: 800; color: var(--warning); }
+        .score-text span { font-size: 0.75rem; color: var(--text-muted); }
+        
+        .progress-group { margin-bottom: 16px; }
+        .progress-header { display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 8px; }
+        .progress-bar { width: 100%; height: 6px; background-color: var(--surface-color); border-radius: 4px; overflow: hidden; }
+        .progress-fill { height: 100%; border-radius: 4px; }
+        
+        .swot-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 24px 0; }
+        .swot-card { padding: 16px; border-radius: 12px; border: 1px solid var(--border); font-size: 0.8rem; }
+        .swot-card.strengths { border-top: 3px solid var(--success); }
+        .swot-card.weaknesses { border-top: 3px solid var(--danger); }
+        .swot-card.opportunities { border-top: 3px solid var(--primary); }
+        .swot-card.threats { border-top: 3px solid var(--warning); }
+        .swot-card ul { margin-top: 8px; padding-left: 16px; color: var(--text-muted); }
+        .swot-card ul li { margin-bottom: 4px; }
+
+        /* === 하단 네비게이션 바 === */
+        #bottom-nav {
+            position: absolute; bottom: 0; left: 0; width: 100%;
+            background-color: rgba(9, 9, 11, 0.85); backdrop-filter: blur(10px);
+            border-top: 1px solid var(--border);
+            display: flex; justify-content: space-around; padding: 16px 0 24px; z-index: 50;
+        }
+        .nav-item { display: flex; flex-direction: column; align-items: center; color: var(--text-muted); font-size: 0.7rem; cursor: pointer; gap: 4px; }
+        .nav-item.active { color: var(--text-main); }
+        .nav-item i { width: 24px; height: 24px; }
+    </style>
+</head>
+<body>
+
+<div id="app-container">
+    
+    <!-- 1. 역할 선택 화면 -->
+    <div id="screen-role" class="screen active">
+        <div class="logo-box">
+            <i data-lucide="zap" style="width: 32px; height: 32px;"></i>
+        </div>
+        <h1>LaunchBridge</h1>
+        <p style="margin-top: 8px; margin-bottom: 32px;">The startup ecosystem platform for Asia</p>
+        
+        <div style="text-align: left; font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; font-weight: bold; letter-spacing: 1px;">Choose your role</div>
+        
+        <div class="role-card selected" onclick="selectRole(this)">
+            <div style="display: flex; gap: 16px; align-items: center;">
+                <div class="logo-box" style="width: 40px; height: 40px; margin: 0;">
+                    <i data-lucide="zap" style="width: 20px;"></i>
+                </div>
+                <div>
+                    <h3 style="font-size: 1.1rem;">Founder</h3>
+                    <p style="font-size: 0.8rem;">I have a startup idea</p>
+                </div>
+            </div>
+            <p style="margin-top: 16px;">Validate your ideas with AI, get matched with investors, and build your dream team.</p>
+            <ul>
+                <li><i data-lucide="check"></i> AI Idea Validator</li>
+                <li><i data-lucide="check"></i> Investor Matching</li>
+                <li><i data-lucide="check"></i> Team Builder</li>
+            </ul>
+        </div>
+
+        <div class="role-card" onclick="selectRole(this)">
+            <div style="display: flex; gap: 16px; align-items: center;">
+                <div class="logo-box" style="width: 40px; height: 40px; margin: 0; background-color: rgba(16, 185, 129, 0.1); color: var(--success);">
+                    <i data-lucide="trending-up" style="width: 20px;"></i>
+                </div>
+                <div>
+                    <h3 style="font-size: 1.1rem;">Investor</h3>
+                    <p style="font-size: 0.8rem;">I want to find deals</p>
+                </div>
+            </div>
+        </div>
+
+        <div style="position: absolute; bottom: 32px; left: 24px; right: 24px;">
+            <button class="btn-primary" onclick="navigate('screen-home')">Get Started</button>
+        </div>
+    </div>
+
+    <!-- 2. 홈 화면 -->
+    <div id="screen-home" class="screen">
+        <div class="top-header">
+            <div>
+                <p>Welcome back</p>
+                <h2>Founder</h2>
+            </div>
+            <div class="tag" style="display: flex; align-items: center; gap: 6px;">
+                <i data-lucide="zap" style="width: 14px;"></i> Founder
+            </div>
+        </div>
+
+        <div class="stats-grid">
+            <div class="stat-box">
+                <h3 id="stat-ideas">0</h3>
+                <p>Ideas Validated</p>
+            </div>
+            <div class="stat-box">
+                <h3 id="stat-score" style="color: var(--danger)">-</h3>
+                <p>Avg Score</p>
+            </div>
+            <div class="stat-box">
+                <h3>0</h3>
+                <p>Saved Investors</p>
+            </div>
+        </div>
+
+        <div class="action-card" onclick="navigate('screen-validate')">
+            <div>
+                <h3><i data-lucide="zap" style="fill: white; width: 18px;"></i> Validate a New Idea</h3>
+                <p>AI-powered analysis in seconds</p>
+            </div>
+            <i data-lucide="arrow-right" style="color: white;"></i>
+        </div>
+
+        <h3 style="margin-bottom: 16px;">Featured Investors</h3>
+        
+        <div class="investor-card">
+            <div class="investor-header">
+                <div class="avatar" style="background-color: rgba(59, 130, 246, 0.2); color: var(--primary);">PA</div>
+                <div style="flex-grow: 1;">
+                    <h4 style="display: flex; align-items: center; gap: 6px;">Park Ventures <i data-lucide="badge-check" style="color: var(--primary); width: 16px;"></i></h4>
+                    <p style="font-size: 0.8rem;">Venture Capital</p>
+                </div>
+                <i data-lucide="bookmark" style="color: var(--text-muted); width: 20px;"></i>
+            </div>
+            <p>Seoul-based early-stage VC focused on deep tech and AI startups with global ambition.</p>
+            <div class="tags">
+                <span class="tag">Seed</span>
+                <span class="tag">Pre-A</span>
+                <span class="tag" style="background-color: var(--surface-color); color: var(--text-muted);">AI</span>
+                <span class="tag" style="background-color: var(--surface-color); color: var(--text-muted);">Fintech</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. 아이디어 검증 작성 폼 -->
+    <div id="screen-validate" class="screen">
+        <div class="modal-header">
+            <i data-lucide="x" style="cursor: pointer;" onclick="navigate('screen-home')"></i>
+            <h2>Validate Idea</h2>
+            <span style="background-color: rgba(59,130,246,0.2); color: var(--primary); padding: 4px 10px; border-radius: 12px; font-size: 0.8rem; font-weight: bold;">0/7</span>
+        </div>
+
+        <div class="info-box">
+            <i data-lucide="cpu" style="margin-top: 2px;"></i>
+            <div>AI will analyze your idea across 5 dimensions: Market Fit, Competition, Viability, Execution Risk, and Timing.</div>
+        </div>
+
+        <div class="form-group">
+            <label>Startup Name</label>
+            <input type="text" class="form-control" placeholder="What's your startup called?">
+        </div>
+        <div class="form-group">
+            <label>Problem</label>
+            <textarea class="form-control" placeholder="What specific problem are you solving?"></textarea>
+        </div>
+        <div class="form-group">
+            <label>Solution</label>
+            <textarea class="form-control" placeholder="How does your product solve this problem?"></textarea>
+        </div>
+        <div class="form-group">
+            <label>Target Audience</label>
+            <input type="text" class="form-control" placeholder="Who is your primary customer segment?">
+        </div>
+        
+        <div style="margin-top: 40px; margin-bottom: 24px;">
+            <p style="text-align: center; margin-bottom: 12px; font-size: 0.8rem;">Fill at least 4 fields to analyze</p>
+            <button class="btn-primary" onclick="simulateAI()">
+                <i data-lucide="zap" style="fill: white;"></i> Analyze Idea
+            </button>
+        </div>
+    </div>
+
+    <!-- 4. AI 분석 로딩 오버레이 -->
+    <div id="loading-overlay">
+        <div class="spinner"></div>
+        <h3 style="margin-bottom: 8px;">Analyzing Idea...</h3>
+        <p>Running LLM validation models</p>
+    </div>
+
+    <!-- 5. AI 분석 결과 화면 -->
+    <div id="screen-analysis" class="screen">
+        <div class="modal-header">
+            <i data-lucide="arrow-left" style="cursor: pointer;" onclick="navigate('screen-home')"></i>
+            <h2>LaunchBridge AI</h2>
+            <span style="background-color: rgba(59,130,246,0.2); color: var(--primary); padding: 4px 10px; border-radius: 12px; font-size: 0.8rem; font-weight: bold;">7/7</span>
+        </div>
+
+        <div class="score-card">
+            <div class="score-circle">
+                <div class="score-text">78<span>/100</span></div>
+            </div>
+            <div>
+                <p style="color: var(--warning); font-weight: bold; font-size: 0.8rem; letter-spacing: 1px;">STRONG POTENTIAL</p>
+                <h3 style="margin-top: 4px;">Overall Score</h3>
+                <p style="font-size: 0.8rem; margin-top: 4px;">Based on 5 AI-analyzed dimensions</p>
+            </div>
+        </div>
+
+        <div style="background-color: var(--card-bg); border: 1px solid var(--border); border-radius: 16px; padding: 20px; margin-bottom: 24px;">
+            <h3 style="margin-bottom: 16px; font-size: 1.1rem;">Dimension Scores</h3>
+            
+            <div class="progress-group">
+                <div class="progress-header"><span>Market Fit</span><span style="color: var(--warning)">85</span></div>
+                <div class="progress-bar"><div class="progress-fill" style="width: 85%; background-color: var(--warning);"></div></div>
+            </div>
+            <div class="progress-group">
+                <div class="progress-header"><span>Competition</span><span style="color: var(--danger)">63</span></div>
+                <div class="progress-bar"><div class="progress-fill" style="width: 63%; background-color: var(--danger);"></div></div>
+            </div>
+            <div class="progress-group">
+                <div class="progress-header"><span>Business Viability</span><span style="color: var(--primary)">80</span></div>
+                <div class="progress-bar"><div class="progress-fill" style="width: 80%; background-color: var(--primary);"></div></div>
+            </div>
+            <div class="progress-group">
+                <div class="progress-header"><span>Execution Risk</span><span style="color: var(--success)">76</span></div>
+                <div class="progress-bar"><div class="progress-fill" style="width: 76%; background-color: var(--success);"></div></div>
+            </div>
+        </div>
+
+        <h3 style="font-size: 1.1rem;">AI Analysis</h3>
+        <p style="margin-top: 12px;">The core problem is well-identified with strong market fit indicators. The revenue model shows excellent monetization potential, but the competitive landscape requires sharp differentiation. Prioritize IP protection and initial customer interviews.</p>
+
+        <div class="swot-grid">
+            <div class="swot-card strengths">
+                <strong style="color: var(--success);">STRENGTHS</strong>
+                <ul>
+                    <li>Clear value proposition</li>
+                    <li>Target market identified</li>
+                </ul>
+            </div>
+            <div class="swot-card weaknesses">
+                <strong style="color: var(--danger);">WEAKNESSES</strong>
+                <ul>
+                    <li>Product-market fit unproven</li>
+                    <li>Execution risk on dev</li>
+                </ul>
+            </div>
+        </div>
+
+        <button class="btn-primary" style="margin-top: 24px;" onclick="navigate('screen-home', true)">
+            <i data-lucide="trending-up"></i> Browse Matching Investors
+        </button>
+    </div>
+
+    <!-- 하단 네비게이션 -->
+    <nav id="bottom-nav" style="display: none;">
+        <div class="nav-item active" onclick="navigate('screen-home')">
+            <i data-lucide="home"></i>
+            <span>Home</span>
+        </div>
+        <div class="nav-item">
+            <i data-lucide="compass"></i>
+            <span>Ideas</span>
+        </div>
+        <div class="nav-item">
+            <i data-lucide="message-square"></i>
+            <span>Community</span>
+        </div>
+        <div class="nav-item">
+            <i data-lucide="user"></i>
+            <span>Profile</span>
+        </div>
+    </nav>
+</div>
+
+<script>
+    // Lucide 아이콘 렌더링
+    lucide.createIcons();
+
+    // 1. 역할 선택 (UI 토글)
+    function selectRole(element) {
+        document.querySelectorAll('.role-card').forEach(card => card.classList.remove('selected'));
+        element.classList.add('selected');
+    }
+
+    // 2. 화면 이동 로직
+    function navigate(screenId, updateStats = false) {
+        // 모든 스크린 숨기기
+        document.querySelectorAll('.screen').forEach(screen => {
+            screen.classList.remove('active');
+        });
+        
+        // 대상 스크린 보이기
+        const targetScreen = document.getElementById(screenId);
+        targetScreen.classList.add('active');
+        
+        // 하단 네비게이션 제어 (홈 화면에서만 보이게)
+        const bottomNav = document.getElementById('bottom-nav');
+        if (screenId === 'screen-home') {
+            bottomNav.style.display = 'flex';
+        } else {
+            bottomNav.style.display = 'none';
+        }
+
+        // 분석을 마치고 홈으로 돌아왔을 때 스탯 업데이트 (발표 디테일)
+        if(updateStats && screenId === 'screen-home') {
+            document.getElementById('stat-ideas').innerText = '1';
+            document.getElementById('stat-score').innerText = '78';
+            document.getElementById('stat-score').style.color = 'var(--warning)';
+        }
+        
+        // 최상단으로 스크롤 이동
+        window.scrollTo(0,0);
+    }
+
+    // 3. AI 분석 로딩 시뮬레이션 (발표용 Wow 포인트)
+    function simulateAI() {
+        const overlay = document.getElementById('loading-overlay');
+        overlay.style.display = 'flex';
+        
+        // 2초 동안 로딩 화면을 보여준 뒤 분석 결과 화면으로 이동
+        setTimeout(() => {
+            overlay.style.display = 'none';
+            navigate('screen-analysis');
+        }, 2000);
+    }
+</script>
+</body>
+</html>
